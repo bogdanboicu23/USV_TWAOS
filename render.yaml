@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: gestionar-sarcini
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: EXPIRARE_TOKEN_MINUTE
+        value: 60
+      - key: DATABASE_PATH
+        value: /opt/render/project/src/sarcini.db

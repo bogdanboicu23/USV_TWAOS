@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestionar de Sarcini</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f6f9; }
+        .card-sarcina { transition: box-shadow .2s; }
+        .card-sarcina:hover { box-shadow: 0 .25rem .75rem rgba(0,0,0,.12); }
+        .finalizata { opacity: .6; }
+        .finalizata .card-title { text-decoration: line-through; }
+        #sectiune-sarcini { display: none; }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-dark bg-primary mb-4">
+    <div class="container">
+        <span class="navbar-brand mb-0 h1">Gestionar de Sarcini</span>
+        <span id="contor-sarcini" class="text-white d-none"></span>
+        <span id="info-utilizator" class="text-white d-none">
+            <span id="nume-utilizator"></span>
+            <button class="btn btn-outline-light btn-sm ms-2" onclick="deconecteaza()">Deconectare</button>
+        </span>
+    </div>
+</nav>
+
+<div class="container" style="max-width: 720px;">
+
+    <!-- Auth Section -->
+    <div id="sectiune-auth">
+        <div class="card">
+            <div class="card-body">
+                <ul class="nav nav-tabs mb-3" id="auth-tabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" onclick="arataPanou('autentificare')">Autentificare</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="arataPanou('inregistrare')">Înregistrare</a>
+                    </li>
+                </ul>
+
+                <!-- Login -->
+                <div id="panou-autentificare">
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="login-email" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Parolă</label>
+                        <input type="password" id="login-parola" class="form-control">
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="autentifica()">Autentificare</button>
+                </div>
+
+                <!-- Register -->
+                <div id="panou-inregistrare" class="d-none">
+                    <div class="mb-3">
+                        <label class="form-label">Nume</label>
+                        <input type="text" id="reg-nume" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="reg-email" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Parolă (min. 6 caractere)</label>
+                        <input type="password" id="reg-parola" class="form-control">
+                    </div>
+                    <button class="btn btn-success w-100" onclick="inregistreaza()">Înregistrare</button>
+                </div>
+
+                <div id="auth-eroare" class="alert alert-danger mt-3 d-none"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks Section -->
+    <div id="sectiune-sarcini">
+        <!-- Add task form -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Sarcină nouă</h5>
+                <div class="mb-2">
+                    <input type="text" id="sarcina-titlu" class="form-control" placeholder="Titlu">
+                </div>
+                <div class="mb-2">
+                    <textarea id="sarcina-descriere" class="form-control" rows="2" placeholder="Descriere (opțional)"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="creazaSarcina()">Adaugă</button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="filtru-nefinalizate" onchange="incarcaSarcini()">
+                <label class="form-check-label" for="filtru-nefinalizate">Doar nefinalizate</label>
+            </div>
+            <input type="text" id="cautare" class="form-control form-control-sm" placeholder="Caută după titlu..." oninput="filtreazaLocal()">
+        </div>
+
+        <!-- Task list -->
+        <div id="lista-sarcini"></div>
+    </div>
+</div>
+
+<script>
+const API = "";
+let token = localStorage.getItem("token");
+let numeUtilizator = localStorage.getItem("numeUtilizator");
+let sarciniFull = [];
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function escapeHtml(text) {
+    const d = document.createElement("div");
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+async function apiFetch(url, options = {}) {
+    if (token) {
+        options.headers = { ...options.headers, "Authorization": "Bearer " + token };
+    }
+    if (options.body && typeof options.body === "object") {
+        options.headers = { ...options.headers, "Content-Type": "application/json" };
+        options.body = JSON.stringify(options.body);
+    }
+    const res = await fetch(API + url, options);
+    if (res.status === 401) { deconecteaza(); throw new Error("Neautorizat"); }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Eroare server");
+    return data;
+}
+
+function arataEroare(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.remove("d-none");
+    setTimeout(() => el.classList.add("d-none"), 4000);
+}
+
+// ── Auth UI ──────────────────────────────────────────────────────────────
+
+function arataPanou(tip) {
+    document.getElementById("panou-autentificare").classList.toggle("d-none", tip !== "autentificare");
+    document.getElementById("panou-inregistrare").classList.toggle("d-none", tip !== "inregistrare");
+    document.querySelectorAll("#auth-tabs .nav-link").forEach((a, i) => {
+        a.classList.toggle("active", (i === 0 && tip === "autentificare") || (i === 1 && tip === "inregistrare"));
+    });
+}
+
+async function inregistreaza() {
+    try {
+        const date = {
+            nume: document.getElementById("reg-nume").value.trim(),
+            email: document.getElementById("reg-email").value.trim(),
+            parola: document.getElementById("reg-parola").value,
+        };
+        await apiFetch("/inregistrare", { method: "POST", body: date });
+        // auto-login after registration
+        document.getElementById("login-email").value = date.email;
+        document.getElementById("login-parola").value = date.parola;
+        arataPanou("autentificare");
+        await autentifica();
+    } catch (e) {
+        arataEroare("auth-eroare", e.message);
+    }
+}
+
+async function autentifica() {
+    try {
+        const date = {
+            email: document.getElementById("login-email").value.trim(),
+            parola: document.getElementById("login-parola").value,
+        };
+        const res = await apiFetch("/autentificare", { method: "POST", body: date });
+        token = res.token;
+        numeUtilizator = res.nume;
+        localStorage.setItem("token", token);
+        localStorage.setItem("numeUtilizator", numeUtilizator);
+        araraInterfataSarcini();
+    } catch (e) {
+        arataEroare("auth-eroare", e.message);
+    }
+}
+
+function deconecteaza() {
+    token = null;
+    numeUtilizator = null;
+    localStorage.removeItem("token");
+    localStorage.removeItem("numeUtilizator");
+    document.getElementById("sectiune-auth").style.display = "";
+    document.getElementById("sectiune-sarcini").style.display = "none";
+    document.getElementById("info-utilizator").classList.add("d-none");
+    document.getElementById("contor-sarcini").classList.add("d-none");
+}
+
+function araraInterfataSarcini() {
+    document.getElementById("sectiune-auth").style.display = "none";
+    document.getElementById("sectiune-sarcini").style.display = "";
+    document.getElementById("info-utilizator").classList.remove("d-none");
+    document.getElementById("nume-utilizator").textContent = escapeHtml(numeUtilizator);
+    incarcaSarcini();
+}
+
+// ── Task operations ──────────────────────────────────────────────────────
+
+async function incarcaSarcini() {
+    const doar = document.getElementById("filtru-nefinalizate").checked;
+    const url = "/sarcini" + (doar ? "?doar_nefinalizate=true" : "");
+    try {
+        sarciniFull = await apiFetch(url);
+        actualizeazaContor();
+        filtreazaLocal();
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function actualizeazaContor() {
+    const total = sarciniFull.length;
+    const finalizate = sarciniFull.filter(s => s.finalizata).length;
+    const el = document.getElementById("contor-sarcini");
+    el.textContent = total + " sarcini / " + finalizate + " finalizate";
+    el.classList.remove("d-none");
+}
+
+function filtreazaLocal() {
+    const q = document.getElementById("cautare").value.toLowerCase();
+    const filtrate = q ? sarciniFull.filter(s => s.titlu.toLowerCase().includes(q)) : sarciniFull;
+    randeazaSarcini(filtrate);
+}
+
+function randeazaSarcini(sarcini) {
+    const container = document.getElementById("lista-sarcini");
+    if (sarcini.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">Nicio sarcină.</p>';
+        return;
+    }
+    container.innerHTML = sarcini.map(s => {
+        const cls = s.finalizata ? "finalizata" : "";
+        const badge = s.finalizata
+            ? '<span class="badge bg-success">Finalizată</span>'
+            : '<span class="badge bg-warning text-dark">În progres</span>';
+        const dataCrearii = s.data_crearii ? new Date(s.data_crearii).toLocaleString("ro-RO") : "";
+        return `
+        <div class="card card-sarcina mb-2 ${cls}" id="card-${s.id}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1" id="continut-${s.id}">
+                        <h6 class="card-title mb-1">${escapeHtml(s.titlu)} ${badge}</h6>
+                        <p class="card-text text-muted small mb-1">${escapeHtml(s.descriere)}</p>
+                        <small class="text-muted">${dataCrearii}</small>
+                    </div>
+                    <div class="btn-group btn-group-sm ms-2">
+                        ${!s.finalizata ? `<button class="btn btn-outline-success" onclick="finalizeazaSarcina(${s.id})">Finalizează</button>` : ""}
+                        <button class="btn btn-outline-secondary" onclick="incepeEditare(${s.id}, '${escapeHtml(s.titlu).replace(/'/g, "\\'")}', '${escapeHtml(s.descriere).replace(/'/g, "\\'")}')">Editează</button>
+                        <button class="btn btn-outline-danger" onclick="stergeSarcina(${s.id})">Șterge</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }).join("");
+}
+
+async function creazaSarcina() {
+    const titlu = document.getElementById("sarcina-titlu").value.trim();
+    const descriere = document.getElementById("sarcina-descriere").value.trim();
+    if (!titlu) return;
+    try {
+        await apiFetch("/sarcini", { method: "POST", body: { titlu, descriere } });
+        document.getElementById("sarcina-titlu").value = "";
+        document.getElementById("sarcina-descriere").value = "";
+        incarcaSarcini();
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+async function finalizeazaSarcina(id) {
+    try {
+        await apiFetch("/sarcini/" + id + "/finalizeaza", { method: "PATCH" });
+        incarcaSarcini();
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+async function stergeSarcina(id) {
+    if (!window.confirm("Sigur doriți să ștergeți această sarcină?")) return;
+    try {
+        await apiFetch("/sarcini/" + id, { method: "DELETE" });
+        incarcaSarcini();
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+// ── Inline edit ──────────────────────────────────────────────────────────
+
+function incepeEditare(id, titlu, descriere) {
+    const el = document.getElementById("continut-" + id);
+    el.innerHTML = `
+        <div class="mb-2">
+            <input type="text" class="form-control form-control-sm" id="edit-titlu-${id}" value="${escapeHtml(titlu)}">
+        </div>
+        <div class="mb-2">
+            <textarea class="form-control form-control-sm" id="edit-desc-${id}" rows="2">${escapeHtml(descriere)}</textarea>
+        </div>
+        <button class="btn btn-sm btn-primary" onclick="salveazaEditare(${id})">Salvează</button>
+        <button class="btn btn-sm btn-secondary" onclick="incarcaSarcini()">Anulează</button>
+    `;
+}
+
+async function salveazaEditare(id) {
+    const titlu = document.getElementById("edit-titlu-" + id).value.trim();
+    const descriere = document.getElementById("edit-desc-" + id).value.trim();
+    if (!titlu) return;
+    try {
+        await apiFetch("/sarcini/" + id, { method: "PUT", body: { titlu, descriere } });
+        incarcaSarcini();
+    } catch (e) {
+        alert(e.message);
+    }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+
+if (token && numeUtilizator) {
+    araraInterfataSarcini();
+}
+</script>
+</body>
+</html>
