@@ -1,0 +1,69 @@
+# Deploy to DigitalOcean Kubernetes
+#
+# Prerequisites (run once):
+#   doctl registry create <registry-name>
+#   doctl kubernetes cluster create gestionar-cluster --region fra1 --size s-1vcpu-2gb --count 1
+#   doctl kubernetes cluster registry add gestionar-cluster
+#   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/do/deploy.yaml
+#
+# Required GitHub Secrets:
+#   DIGITALOCEAN_ACCESS_TOKEN - DO API token
+#   DO_REGISTRY_NAME          - DOCR registry name
+#   DO_CLUSTER_NAME           - DOKS cluster name
+#   APP_SECRET_KEY             - JWT secret key for the app
+
+name: Deploy to DOKS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DOCR
+        run: doctl registry login --expiry-seconds 1200
+
+      - name: Build Docker image
+        run: |
+          docker build -t registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/gestionar-sarcini:${{ github.sha }} .
+          docker tag registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/gestionar-sarcini:${{ github.sha }} \
+                     registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/gestionar-sarcini:latest
+
+      - name: Push to DOCR
+        run: |
+          docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/gestionar-sarcini:${{ github.sha }}
+          docker push registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/gestionar-sarcini:latest
+
+      - name: Configure kubectl
+        run: doctl kubernetes cluster kubeconfig save ${{ secrets.DO_CLUSTER_NAME }}
+
+      - name: Set image tag in deployment
+        run: |
+          sed -i "s|IMAGE_PLACEHOLDER|registry.digitalocean.com/${{ secrets.DO_REGISTRY_NAME }}/gestionar-sarcini:${{ github.sha }}|" k8s/deployment.yaml
+
+      - name: Inject secret key
+        run: |
+          sed -i "s|PLACEHOLDER_SECRET_KEY|${{ secrets.APP_SECRET_KEY }}|" k8s/secret.yaml
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/secret.yaml
+          kubectl apply -f k8s/pvc.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+      - name: Wait for rollout
+        run: kubectl rollout status deployment/gestionar -n gestionar --timeout=120s
