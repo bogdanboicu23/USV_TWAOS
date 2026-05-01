@@ -1,124 +1,523 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html lang="ro" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestionar de Sarcini</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                    animation: {
+                        'fade-in':          'fadeIn .4s ease both',
+                        'fade-in-up':       'fadeInUp .5s ease both',
+                        'slide-in-right':   'slideInRight .35s ease',
+                        'slide-out-right':  'slideOutRight .3s ease forwards',
+                        'slide-out-card':   'slideOutCard .35s ease forwards',
+                        'pulse-ring':       'pulseRing .6s ease',
+                        'bounce-in':        'bounceIn .5s cubic-bezier(.36,.07,.19,.97) both',
+                        'scale-in':         'scaleIn .2s ease both',
+                    },
+                    keyframes: {
+                        fadeIn:       { from: { opacity: 0, transform: 'translateY(8px)' },   to: { opacity: 1, transform: 'translateY(0)' } },
+                        fadeInUp:     { from: { opacity: 0, transform: 'translateY(20px)' },  to: { opacity: 1, transform: 'translateY(0)' } },
+                        slideInRight: { from: { opacity: 0, transform: 'translateX(30px)' },  to: { opacity: 1, transform: 'translateX(0)' } },
+                        slideOutRight:{ to:   { opacity: 0, transform: 'translateX(30px)' } },
+                        slideOutCard: { to:   { opacity: 0, transform: 'translateX(50px) scale(.95)' } },
+                        pulseRing:    { '0%': { boxShadow: '0 0 0 0 rgba(99,102,241,.5)' }, '100%': { boxShadow: '0 0 0 12px rgba(99,102,241,0)' } },
+                        bounceIn:     { '0%,20%,40%,60%,80%,to': { animationTimingFunction: 'cubic-bezier(.215,.61,.355,1)' }, '0%': { opacity: 0, transform: 'scale3d(.3,.3,.3)' }, '20%': { transform: 'scale3d(1.1,1.1,1.1)' }, '40%': { transform: 'scale3d(.9,.9,.9)' }, '60%': { opacity: 1, transform: 'scale3d(1.03,1.03,1.03)' }, '80%': { transform: 'scale3d(.97,.97,.97)' }, 'to': { opacity: 1, transform: 'scaleX(1)' } },
+                        scaleIn:      { from: { opacity: 0, transform: 'scale(.95)' },        to: { opacity: 1, transform: 'scale(1)' } },
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { background: #f4f6f9; }
-        .card-sarcina { transition: box-shadow .2s; }
-        .card-sarcina:hover { box-shadow: 0 .25rem .75rem rgba(0,0,0,.12); }
-        .finalizata { opacity: .6; }
-        .finalizata .card-title { text-decoration: line-through; }
-        #sectiune-sarcini { display: none; }
+        /* ── Custom checkbox ── */
+        .task-check { appearance: none; width: 1.25rem; height: 1.25rem; border: 2px solid #cbd5e1; border-radius: .375rem; cursor: pointer; transition: all .15s; flex-shrink: 0; position: relative; }
+        .dark .task-check { border-color: #475569; }
+        .task-check:checked { background: #6366f1; border-color: #6366f1; }
+        .task-check:checked::after { content: ''; position: absolute; left: 3.5px; top: .5px; width: 5px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        .task-check:hover { border-color: #6366f1; }
+
+        /* ── Priority checkbox variants ── */
+        .task-check.prio-ridicata:hover, .task-check.prio-ridicata:checked { border-color: #ef4444; background: #ef4444; }
+        .task-check.prio-medie:hover, .task-check.prio-medie:checked { border-color: #f59e0b; background: #f59e0b; }
+
+        /* ── Description collapse ── */
+        .desc-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s ease; }
+        .desc-body.open { grid-template-rows: 1fr; }
+        .desc-body > div { overflow: hidden; }
+
+        /* ── Form collapse ── */
+        .form-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s ease; }
+        .form-body.open { grid-template-rows: 1fr; }
+        .form-body > div { overflow: hidden; }
+
+        /* ── Spinner ── */
+        .btn-spinner { width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Progress bar animation ── */
+        .progress-bar { transition: width .6s cubic-bezier(.4,0,.2,1); }
+
+        /* ── Stat card hover ── */
+        .stat-card { transition: transform .2s ease, box-shadow .2s ease; }
+        .stat-card:hover { transform: translateY(-2px); }
+
+        /* ── Date input dark mode fix ── */
+        input[type="date"]::-webkit-calendar-picker-indicator { opacity: .6; cursor: pointer; }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+        /* ── Scrollbar (subtle) ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        /* ── Category chip active ── */
+        .cat-chip.active { background: #6366f1 !important; color: #fff !important; border-color: #6366f1 !important; }
+        .dark .cat-chip.active { background: #818cf8 !important; color: #fff !important; border-color: #818cf8 !important; }
+
+        /* ── Overdue warning pulse ── */
+        @keyframes overdueGlow { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.3); } 50% { box-shadow: 0 0 0 4px rgba(239,68,68,.1); } }
+        .overdue-card { animation: overdueGlow 2s ease infinite; }
+
+        /* ── FAB tooltip ── */
+        .fab-tooltip { pointer-events: none; transition: opacity .15s, transform .15s; }
+
+        /* ── Smooth dark bg transition ── */
+        body, .bg-white, .bg-slate-50 { transition: background-color .3s ease, border-color .3s ease, color .3s ease; }
     </style>
 </head>
-<body>
+<body class="min-h-full bg-gradient-to-br from-slate-50 via-indigo-50/30 to-violet-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 font-sans text-slate-700 dark:text-slate-200">
 
-<!-- Navbar -->
-<nav class="navbar navbar-dark bg-primary mb-4">
-    <div class="container">
-        <span class="navbar-brand mb-0 h1">Gestionar de Sarcini</span>
-        <span id="contor-sarcini" class="text-white d-none"></span>
-        <span id="info-utilizator" class="text-white d-none">
-            <span id="nume-utilizator"></span>
-            <button class="btn btn-outline-light btn-sm ms-2" onclick="deconecteaza()">Deconectare</button>
-        </span>
+<!-- ═══ Toast container ═══ -->
+<div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-xs w-full"></div>
+
+<!-- ═══ FAB (mobile) ═══ -->
+<button id="fab-btn" onclick="toggleForm()"
+    class="fixed bottom-6 right-6 z-40 lg:hidden w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-300/40 dark:shadow-indigo-900/50 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+    title="Sarcină nouă">
+    <svg id="fab-icon" class="w-7 h-7 transition-transform duration-200" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+    </svg>
+</button>
+
+<!-- ═══ Navbar ═══ -->
+<nav class="bg-gradient-to-r from-indigo-600 to-violet-600 dark:from-indigo-700 dark:to-violet-700 shadow-lg shadow-indigo-200/40 dark:shadow-indigo-900/40 sticky top-0 z-30">
+    <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-white font-bold text-lg tracking-tight">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+            <span class="hidden sm:inline">Gestionar de Sarcini</span>
+            <span class="sm:hidden">Sarcini</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <!-- Dark mode toggle -->
+            <button onclick="toggleDark()" id="dark-toggle"
+                class="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/15 transition"
+                title="Comută tema">
+                <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m8.66-9h-1M4.34 12h-1m15.07-6.07-.71.71M6.34 17.66l-.71.71m12.02 0-.71-.71M6.34 6.34l-.71-.71M12 5a7 7 0 100 14A7 7 0 0012 5z"/>
+                </svg>
+                <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+                </svg>
+            </button>
+            <span id="contor-sarcini" class="hidden text-indigo-100 text-sm font-medium bg-white/15 px-3 py-1 rounded-full"></span>
+            <span id="info-utilizator" class="hidden items-center gap-2 text-white text-sm">
+                <span class="bg-white/20 px-2.5 py-1 rounded-full font-medium" id="nume-utilizator"></span>
+                <button onclick="deconecteaza()" class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-white/90 hover:bg-white/15 transition" title="Deconectare">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    <span class="hidden sm:inline">Ieșire</span>
+                </button>
+            </span>
+        </div>
     </div>
 </nav>
 
-<div class="container" style="max-width: 720px;">
+<div class="max-w-4xl mx-auto px-4 py-6 pb-24">
 
-    <!-- Auth Section -->
+    <!-- ═══════════════════════════════════════════════════════════════
+         AUTH SECTION
+    ════════════════════════════════════════════════════════════════ -->
     <div id="sectiune-auth">
-        <div class="card">
-            <div class="card-body">
-                <ul class="nav nav-tabs mb-3" id="auth-tabs">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="#" onclick="arataPanou('autentificare')">Autentificare</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="arataPanou('inregistrare')">Înregistrare</a>
-                    </li>
-                </ul>
+        <div class="max-w-md mx-auto mt-8 animate-fade-in">
+            <!-- Logo area -->
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-xl shadow-indigo-200/50 dark:shadow-indigo-900/50 mb-4 animate-bounce-in">
+                    <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-extrabold text-slate-800 dark:text-white">Bun venit!</h1>
+                <p class="text-slate-500 dark:text-slate-400 text-sm mt-1.5">Conectează-te pentru a-ți gestiona sarcinile</p>
+            </div>
 
-                <!-- Login -->
-                <div id="panou-autentificare">
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" id="login-email" class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Parolă</label>
-                        <input type="password" id="login-parola" class="form-control">
-                    </div>
-                    <button class="btn btn-primary w-100" onclick="autentifica()">Autentificare</button>
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50 border border-slate-100 dark:border-slate-700 overflow-hidden">
+                <!-- Tabs -->
+                <div class="flex border-b border-slate-100 dark:border-slate-700" id="auth-tabs">
+                    <button class="auth-tab flex-1 py-3.5 text-sm font-semibold text-center transition border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400" onclick="arataPanou('autentificare')">
+                        Autentificare
+                    </button>
+                    <button class="auth-tab flex-1 py-3.5 text-sm font-semibold text-center transition border-b-2 border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" onclick="arataPanou('inregistrare')">
+                        Înregistrare
+                    </button>
                 </div>
 
-                <!-- Register -->
-                <div id="panou-inregistrare" class="d-none">
-                    <div class="mb-3">
-                        <label class="form-label">Nume</label>
-                        <input type="text" id="reg-nume" class="form-control">
+                <div class="p-6">
+                    <!-- Login panel -->
+                    <div id="panou-autentificare">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Email</label>
+                                <input type="email" id="login-email"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                                    placeholder="exemplu@email.com"
+                                    onkeydown="if(event.key==='Enter')autentifica()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Parolă</label>
+                                <div class="relative">
+                                    <input type="password" id="login-parola"
+                                        class="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                                        placeholder="••••••••"
+                                        onkeydown="if(event.key==='Enter')autentifica()">
+                                    <button type="button" onclick="toggleParola('login-parola', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                                        <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <button id="btn-autentificare" onclick="autentifica()"
+                                class="w-full py-3 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white rounded-xl font-semibold text-sm shadow-md shadow-indigo-200/50 hover:shadow-lg hover:shadow-indigo-300/50 transition-all active:scale-[.98] flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+                                Autentificare
+                            </button>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" id="reg-email" class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Parolă (min. 6 caractere)</label>
-                        <input type="password" id="reg-parola" class="form-control">
-                    </div>
-                    <button class="btn btn-success w-100" onclick="inregistreaza()">Înregistrare</button>
-                </div>
 
-                <div id="auth-eroare" class="alert alert-danger mt-3 d-none"></div>
+                    <!-- Register panel -->
+                    <div id="panou-inregistrare" class="hidden">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Nume</label>
+                                <input type="text" id="reg-nume"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                                    placeholder="Numele tău"
+                                    onkeydown="if(event.key==='Enter')document.getElementById('reg-email').focus()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Email</label>
+                                <input type="email" id="reg-email"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                                    placeholder="exemplu@email.com"
+                                    onkeydown="if(event.key==='Enter')document.getElementById('reg-parola').focus()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Parolă <span class="text-slate-400 font-normal">(min. 6 caractere)</span></label>
+                                <div class="relative">
+                                    <input type="password" id="reg-parola"
+                                        class="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                                        placeholder="••••••••"
+                                        onkeydown="if(event.key==='Enter')inregistreaza()">
+                                    <button type="button" onclick="toggleParola('reg-parola', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                                        <svg class="w-4 h-4 eye-open" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg class="w-4 h-4 eye-closed hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <button id="btn-inregistrare" onclick="inregistreaza()"
+                                class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold text-sm shadow-md shadow-emerald-200/50 hover:shadow-lg hover:shadow-emerald-300/50 transition-all active:scale-[.98] flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                                Creează cont
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Auth error -->
+                    <div id="auth-eroare" class="hidden mt-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-xl flex items-center gap-2">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span id="auth-eroare-text"></span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Tasks Section -->
-    <div id="sectiune-sarcini">
-        <!-- Add task form -->
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5 class="card-title">Sarcină nouă</h5>
-                <div class="mb-2">
-                    <input type="text" id="sarcina-titlu" class="form-control" placeholder="Titlu">
+    <!-- ═══════════════════════════════════════════════════════════════
+         TASKS SECTION
+    ════════════════════════════════════════════════════════════════ -->
+    <div id="sectiune-sarcini" class="hidden">
+
+        <!-- ── Statistics dashboard ── -->
+        <div id="sectiune-statistici" class="mb-6 animate-fade-in-up">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                <!-- Total -->
+                <div class="stat-card bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Total</span>
+                        <div class="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                        </div>
+                    </div>
+                    <div id="stat-total" class="text-3xl font-extrabold text-slate-800 dark:text-white">—</div>
+                    <div class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">sarcini înregistrate</div>
                 </div>
-                <div class="mb-2">
-                    <textarea id="sarcina-descriere" class="form-control" rows="2" placeholder="Descriere (opțional)"></textarea>
+                <!-- Completed -->
+                <div class="stat-card bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Finalizate</span>
+                        <div class="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                    </div>
+                    <div id="stat-finalizate" class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">—</div>
+                    <div class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">sarcini completate</div>
                 </div>
-                <button class="btn btn-primary" onclick="creazaSarcina()">Adaugă</button>
+                <!-- Pending -->
+                <div class="stat-card bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">În așteptare</span>
+                        <div class="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                    </div>
+                    <div id="stat-nefinalizate" class="text-3xl font-extrabold text-amber-600 dark:text-amber-400">—</div>
+                    <div class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">de rezolvat</div>
+                </div>
+                <!-- Overdue -->
+                <div class="stat-card bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Întârziate</span>
+                        <div class="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        </div>
+                    </div>
+                    <div id="stat-intarziate" class="text-3xl font-extrabold text-red-600 dark:text-red-400">—</div>
+                    <div class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">depășit termenul</div>
+                </div>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">Progres general</span>
+                    <span id="progres-procent" class="text-sm font-bold text-indigo-600 dark:text-indigo-400">0%</span>
+                </div>
+                <div class="h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div id="bara-progres" class="progress-bar h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full" style="width:0%"></div>
+                </div>
+                <!-- Priority breakdown -->
+                <div id="prioritate-breakdown" class="hidden mt-3 flex flex-wrap gap-2"></div>
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="d-flex align-items-center gap-3 mb-3">
-            <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="filtru-nefinalizate" onchange="incarcaSarcini()">
-                <label class="form-check-label" for="filtru-nefinalizate">Doar nefinalizate</label>
+        <!-- ── Add task form (collapsible) ── -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 mb-5 animate-fade-in overflow-hidden">
+            <!-- Form header / toggle -->
+            <button onclick="toggleForm()" class="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition" id="form-toggle-btn">
+                <h2 class="text-base font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    Sarcină nouă
+                </h2>
+                <svg id="form-chevron" class="w-5 h-5 text-slate-400 transition-transform duration-200 rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/>
+                </svg>
+            </button>
+
+            <!-- Collapsible form body -->
+            <div class="form-body open" id="form-collapse">
+                <div>
+                    <div class="px-5 pb-5 space-y-3 border-t border-slate-100 dark:border-slate-700 pt-4">
+                        <!-- Row 1: Title + Description -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Titlu <span class="text-red-400">*</span></label>
+                                <input type="text" id="sarcina-titlu"
+                                    placeholder="Ce trebuie să faci?"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                                    onkeydown="if(event.key==='Enter')creazaSarcina()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Descriere</label>
+                                <input type="text" id="sarcina-descriere"
+                                    placeholder="Descriere (opțional)"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                                    onkeydown="if(event.key==='Enter')creazaSarcina()">
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Priority + Due date + Category -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <!-- Priority selector -->
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Prioritate</label>
+                                <div class="flex gap-2" id="prioritate-selector">
+                                    <button type="button" onclick="setPrioritate('scazuta')"
+                                        data-prio="scazuta"
+                                        class="prio-btn flex-1 py-2 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold transition hover:border-emerald-400 flex items-center justify-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span> Scăzută
+                                    </button>
+                                    <button type="button" onclick="setPrioritate('medie')"
+                                        data-prio="medie"
+                                        class="prio-btn flex-1 py-2 rounded-xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs font-semibold transition hover:border-amber-400 flex items-center justify-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span> Medie
+                                    </button>
+                                    <button type="button" onclick="setPrioritate('ridicata')"
+                                        data-prio="ridicata"
+                                        class="prio-btn flex-1 py-2 rounded-xl border-2 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-xs font-semibold transition hover:border-red-400 flex items-center justify-center gap-1">
+                                        <span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span> Ridicată
+                                    </button>
+                                </div>
+                                <input type="hidden" id="sarcina-prioritate" value="medie">
+                            </div>
+
+                            <!-- Due date -->
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Data limită</label>
+                                <input type="date" id="sarcina-data-limita"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition">
+                            </div>
+
+                            <!-- Category -->
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Categorie</label>
+                                <input type="text" id="sarcina-categorie"
+                                    placeholder="ex: Muncă, Personal..."
+                                    list="categorii-sugerate"
+                                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                                    onkeydown="if(event.key==='Enter')creazaSarcina()">
+                                <datalist id="categorii-sugerate"></datalist>
+                            </div>
+                        </div>
+
+                        <!-- Submit button -->
+                        <div class="flex justify-end pt-1">
+                            <button id="btn-adauga" onclick="creazaSarcina()"
+                                class="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 text-white rounded-xl font-semibold text-sm shadow-md shadow-indigo-200/50 hover:shadow-lg transition-all active:scale-[.98] flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                                Adaugă sarcină
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <input type="text" id="cautare" class="form-control form-control-sm" placeholder="Caută după titlu..." oninput="filtreazaLocal()">
         </div>
 
-        <!-- Task list -->
+        <!-- ── Filters & Sorting bar ── -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 p-4 mb-4 space-y-3 animate-fade-in">
+            <!-- Row 1: Search + filter toggle -->
+            <div class="flex items-center gap-3">
+                <div class="flex-1 relative">
+                    <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="text" id="cautare"
+                        placeholder="Caută sarcini..."
+                        class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/50 dark:bg-slate-700/50 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                        oninput="filtreazaLocal()">
+                </div>
+                <label class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 cursor-pointer select-none group whitespace-nowrap">
+                    <input type="checkbox" id="filtru-nefinalizate" onchange="incarcaSarcini()"
+                        class="w-4 h-4 rounded border-slate-300 text-indigo-500 focus:ring-indigo-500/30 cursor-pointer">
+                    <span class="group-hover:text-slate-700 dark:group-hover:text-slate-200 transition hidden sm:inline">Doar nefinalizate</span>
+                    <span class="group-hover:text-slate-700 dark:group-hover:text-slate-200 transition sm:hidden">Nefinalizate</span>
+                </label>
+            </div>
+
+            <!-- Row 2: Sort controls -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Sortare:</span>
+                <select id="sorteaza-dupa" onchange="incarcaSarcini()"
+                    class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 dark:text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition cursor-pointer">
+                    <option value="data_crearii">Data creării</option>
+                    <option value="prioritate">Prioritate</option>
+                    <option value="data_limita">Data limită</option>
+                </select>
+                <button onclick="toggleOrdine()" id="btn-ordine"
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 dark:text-slate-200 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-600 transition">
+                    <svg id="ordine-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>
+                    </svg>
+                    <span id="ordine-text">Descrescător</span>
+                </button>
+                <span class="text-xs text-slate-400 dark:text-slate-500">|</span>
+                <!-- Category filter chips -->
+                <div id="categorii-chips" class="flex flex-wrap gap-1.5 items-center"></div>
+            </div>
+        </div>
+
+        <!-- ── Task list ── -->
         <div id="lista-sarcini"></div>
     </div>
 </div>
 
+<!-- ═══ Footer ═══ -->
+<footer id="footer-app" class="hidden border-t border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm mt-8">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            <span class="font-semibold text-slate-700 dark:text-slate-300">Gestionar de Sarcini</span>
+        </div>
+        <div class="text-xs text-slate-400 dark:text-slate-500 text-center">
+            TAOS Labs · Universitatea "Ștefan cel Mare" Suceava · 2025
+        </div>
+        <div class="text-xs text-slate-400 dark:text-slate-500">
+            Versiunea 2.0
+        </div>
+    </div>
+</footer>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════════════════════ -->
 <script>
 const API = "";
-let token = localStorage.getItem("token");
-let numeUtilizator = localStorage.getItem("numeUtilizator");
-let sarciniFull = [];
+let token           = localStorage.getItem("token");
+let numeUtilizator  = localStorage.getItem("numeUtilizator");
+let sarciniFull     = [];
+let lastCreatedId   = null;
+let ordineAsc       = false;
+let prioriateSelectata = "medie";
+let categorieActiva  = null;
 
-// ── Helpers ──────────────────────────────────────────────────────────────
+// ── Dark mode init ────────────────────────────────────────────────────
+
+(function initDark() {
+    const saved = localStorage.getItem("darkMode");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (saved === "true" || (!saved && prefersDark)) {
+        document.documentElement.classList.add("dark");
+    }
+    updateDarkIcons();
+})();
+
+function updateDarkIcons() {
+    const isDark = document.documentElement.classList.contains("dark");
+    document.getElementById("icon-sun").classList.toggle("hidden", !isDark);
+    document.getElementById("icon-moon").classList.toggle("hidden", isDark);
+}
+
+function toggleDark() {
+    const isDark = document.documentElement.classList.toggle("dark");
+    localStorage.setItem("darkMode", isDark);
+    updateDarkIcons();
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
 
 function escapeHtml(text) {
+    if (text == null) return "";
     const d = document.createElement("div");
-    d.textContent = text;
+    d.textContent = String(text);
     return d.innerHTML;
 }
 
@@ -137,45 +536,233 @@ async function apiFetch(url, options = {}) {
     return data;
 }
 
-function arataEroare(id, msg) {
-    const el = document.getElementById(id);
-    el.textContent = msg;
-    el.classList.remove("d-none");
-    setTimeout(() => el.classList.add("d-none"), 4000);
+// ── Toast notifications ───────────────────────────────────────────────
+
+function showToast(msg, type = "success") {
+    const container = document.getElementById("toast-container");
+    const toast = document.createElement("div");
+    const colors = {
+        success: "bg-emerald-500 shadow-emerald-200/50 dark:shadow-emerald-900/50",
+        error:   "bg-red-500 shadow-red-200/50 dark:shadow-red-900/50",
+        info:    "bg-indigo-500 shadow-indigo-200/50 dark:shadow-indigo-900/50",
+    }[type] || "bg-emerald-500";
+    const icons = {
+        success: '<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>',
+        error:   '<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+        info:    '<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+    }[type] || icons.success;
+    toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-xl text-white text-sm font-medium shadow-lg ${colors} animate-slide-in-right min-w-[240px] max-w-xs`;
+    toast.innerHTML = icons + `<span>${escapeHtml(msg)}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.remove("animate-slide-in-right");
+        toast.classList.add("animate-slide-out-right");
+        toast.addEventListener("animationend", () => toast.remove());
+    }, 3500);
 }
 
-// ── Auth UI ──────────────────────────────────────────────────────────────
+function arataEroare(id, msg) {
+    const el = document.getElementById(id);
+    const textEl = document.getElementById(id + "-text");
+    if (textEl) textEl.textContent = msg;
+    else el.textContent = msg;
+    el.classList.remove("hidden");
+    setTimeout(() => el.classList.add("hidden"), 4500);
+}
+
+// ── Button loading ────────────────────────────────────────────────────
+
+function btnLoading(btn, loading) {
+    if (loading) {
+        btn.dataset.origHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add("opacity-70", "pointer-events-none");
+        btn.innerHTML = '<span class="btn-spinner"></span><span>Se procesează...</span>';
+    } else {
+        btn.disabled = false;
+        btn.classList.remove("opacity-70", "pointer-events-none");
+        btn.innerHTML = btn.dataset.origHtml || btn.innerHTML;
+    }
+}
+
+// ── Relative timestamps ───────────────────────────────────────────────
+
+function timpRelativ(dateStr) {
+    if (!dateStr) return "";
+    const diff = Math.max(0, Date.now() - new Date(dateStr).getTime());
+    const sec = Math.floor(diff / 1000);
+    if (sec < 60) return "acum câteva secunde";
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `acum ${min} min`;
+    const ore = Math.floor(min / 60);
+    if (ore < 24) return `acum ${ore} ${ore === 1 ? "oră" : "ore"}`;
+    const zile = Math.floor(ore / 24);
+    if (zile < 30) return `acum ${zile} ${zile === 1 ? "zi" : "zile"}`;
+    return new Date(dateStr).toLocaleDateString("ro-RO");
+}
+
+function formateazaDataLimita(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const diffDays = Math.floor((d - now) / 86400000);
+    const label = d.toLocaleDateString("ro-RO", { day: "numeric", month: "short", year: "numeric" });
+    if (diffDays < 0)   return { label, overdue: true,  urgent: false, text: `Întârziat cu ${Math.abs(diffDays)} zile` };
+    if (diffDays === 0) return { label, overdue: false, urgent: true,  text: "Azi" };
+    if (diffDays === 1) return { label, overdue: false, urgent: true,  text: "Mâine" };
+    if (diffDays <= 3)  return { label, overdue: false, urgent: true,  text: `În ${diffDays} zile` };
+    return { label, overdue: false, urgent: false, text: label };
+}
+
+// ── Password toggle ───────────────────────────────────────────────────
+
+function toggleParola(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const eyeOpen   = btn.querySelector(".eye-open");
+    const eyeClosed = btn.querySelector(".eye-closed");
+    if (input.type === "password") {
+        input.type = "text";
+        eyeOpen.classList.add("hidden");
+        eyeClosed.classList.remove("hidden");
+    } else {
+        input.type = "password";
+        eyeOpen.classList.remove("hidden");
+        eyeClosed.classList.add("hidden");
+    }
+}
+
+// ── Priority selector ─────────────────────────────────────────────────
+
+function setPrioritate(val) {
+    prioriateSelectata = val;
+    document.getElementById("sarcina-prioritate").value = val;
+    const styles = {
+        scazuta: { ring: "ring-2 ring-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/40", base: "border-2 border-emerald-400 dark:border-emerald-500" },
+        medie:   { ring: "ring-2 ring-amber-400",   bg: "bg-amber-100 dark:bg-amber-900/40",   base: "border-2 border-amber-400 dark:border-amber-500" },
+        ridicata:{ ring: "ring-2 ring-red-400",     bg: "bg-red-100 dark:bg-red-900/40",       base: "border-2 border-red-400 dark:border-red-500" },
+    };
+    document.querySelectorAll(".prio-btn").forEach(btn => {
+        const prio = btn.dataset.prio;
+        const isActive = prio === val;
+        btn.classList.toggle("opacity-40", !isActive);
+        btn.classList.toggle("scale-95",   !isActive);
+        if (isActive) {
+            btn.classList.add("scale-105", "shadow-sm");
+        } else {
+            btn.classList.remove("scale-105", "shadow-sm");
+        }
+    });
+}
+
+// ── Sort & order ──────────────────────────────────────────────────────
+
+function toggleOrdine() {
+    ordineAsc = !ordineAsc;
+    const icon  = document.getElementById("ordine-icon");
+    const text  = document.getElementById("ordine-text");
+    text.textContent = ordineAsc ? "Crescător" : "Descrescător";
+    icon.innerHTML = ordineAsc
+        ? '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"/>'
+        : '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>';
+    incarcaSarcini();
+}
+
+// ── Form collapse ─────────────────────────────────────────────────────
+
+let formOpen = true;
+
+function toggleForm() {
+    formOpen = !formOpen;
+    const body    = document.getElementById("form-collapse");
+    const chevron = document.getElementById("form-chevron");
+    const fabIcon = document.getElementById("fab-icon");
+    body.classList.toggle("open", formOpen);
+    chevron.style.transform = formOpen ? "rotate(180deg)" : "rotate(0deg)";
+    if (!formOpen) {
+        fabIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>';
+    } else {
+        fabIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>';
+    }
+}
+
+// ── Category chips (filter) ───────────────────────────────────────────
+
+function actualizeazaCategorii() {
+    const cats = [...new Set(sarciniFull.map(s => s.categorie).filter(Boolean))].sort();
+    const container = document.getElementById("categorii-chips");
+    const datalist  = document.getElementById("categorii-sugerate");
+
+    // Update datalist for the form input
+    datalist.innerHTML = cats.map(c => `<option value="${escapeHtml(c)}">`).join("");
+
+    if (cats.length === 0) {
+        container.innerHTML = "";
+        return;
+    }
+
+    container.innerHTML = `
+        <button onclick="filtrareCategorie(null)"
+            class="cat-chip px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-600 transition ${categorieActiva === null ? 'active' : ''}">
+            Toate
+        </button>
+        ${cats.map(c => `
+        <button onclick="filtrareCategorie('${escapeHtml(c).replace(/'/g, "\\'")}')"
+            class="cat-chip px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-600 transition ${categorieActiva === c ? 'active' : ''}">
+            ${escapeHtml(c)}
+        </button>`).join("")}`;
+}
+
+function filtrareCategorie(cat) {
+    categorieActiva = cat;
+    actualizeazaCategorii();
+    filtreazaLocal();
+}
+
+// ── Auth UI ───────────────────────────────────────────────────────────
 
 function arataPanou(tip) {
-    document.getElementById("panou-autentificare").classList.toggle("d-none", tip !== "autentificare");
-    document.getElementById("panou-inregistrare").classList.toggle("d-none", tip !== "inregistrare");
-    document.querySelectorAll("#auth-tabs .nav-link").forEach((a, i) => {
-        a.classList.toggle("active", (i === 0 && tip === "autentificare") || (i === 1 && tip === "inregistrare"));
+    document.getElementById("panou-autentificare").classList.toggle("hidden", tip !== "autentificare");
+    document.getElementById("panou-inregistrare").classList.toggle("hidden", tip !== "inregistrare");
+    const tabs = document.querySelectorAll("#auth-tabs .auth-tab");
+    tabs.forEach((t, i) => {
+        const active = (i === 0 && tip === "autentificare") || (i === 1 && tip === "inregistrare");
+        t.classList.toggle("border-indigo-500",   active);
+        t.classList.toggle("text-indigo-600",     active);
+        t.classList.toggle("dark:text-indigo-400",active);
+        t.classList.toggle("border-transparent",  !active);
+        t.classList.toggle("text-slate-400",      !active);
     });
 }
 
 async function inregistreaza() {
+    const btn = document.getElementById("btn-inregistrare");
+    btnLoading(btn, true);
     try {
         const date = {
-            nume: document.getElementById("reg-nume").value.trim(),
-            email: document.getElementById("reg-email").value.trim(),
+            nume:   document.getElementById("reg-nume").value.trim(),
+            email:  document.getElementById("reg-email").value.trim(),
             parola: document.getElementById("reg-parola").value,
         };
         await apiFetch("/inregistrare", { method: "POST", body: date });
-        // auto-login after registration
+        showToast("Cont creat cu succes!");
         document.getElementById("login-email").value = date.email;
         document.getElementById("login-parola").value = date.parola;
         arataPanou("autentificare");
         await autentifica();
     } catch (e) {
         arataEroare("auth-eroare", e.message);
+    } finally {
+        btnLoading(btn, false);
     }
 }
 
 async function autentifica() {
+    const btn = document.getElementById("btn-autentificare");
+    btnLoading(btn, true);
     try {
         const date = {
-            email: document.getElementById("login-email").value.trim(),
+            email:  document.getElementById("login-email").value.trim(),
             parola: document.getElementById("login-parola").value,
         };
         const res = await apiFetch("/autentificare", { method: "POST", body: date });
@@ -183,9 +770,12 @@ async function autentifica() {
         numeUtilizator = res.nume;
         localStorage.setItem("token", token);
         localStorage.setItem("numeUtilizator", numeUtilizator);
+        showToast(`Bun venit, ${numeUtilizator}!`);
         araraInterfataSarcini();
     } catch (e) {
         arataEroare("auth-eroare", e.message);
+    } finally {
+        btnLoading(btn, false);
     }
 }
 
@@ -195,27 +785,76 @@ function deconecteaza() {
     localStorage.removeItem("token");
     localStorage.removeItem("numeUtilizator");
     document.getElementById("sectiune-auth").style.display = "";
-    document.getElementById("sectiune-sarcini").style.display = "none";
-    document.getElementById("info-utilizator").classList.add("d-none");
-    document.getElementById("contor-sarcini").classList.add("d-none");
+    document.getElementById("sectiune-sarcini").classList.add("hidden");
+    document.getElementById("info-utilizator").classList.add("hidden");
+    document.getElementById("contor-sarcini").classList.add("hidden");
+    document.getElementById("footer-app").classList.add("hidden");
 }
 
 function araraInterfataSarcini() {
     document.getElementById("sectiune-auth").style.display = "none";
-    document.getElementById("sectiune-sarcini").style.display = "";
-    document.getElementById("info-utilizator").classList.remove("d-none");
-    document.getElementById("nume-utilizator").textContent = escapeHtml(numeUtilizator);
+    document.getElementById("sectiune-sarcini").classList.remove("hidden");
+    document.getElementById("info-utilizator").classList.remove("hidden");
+    document.getElementById("info-utilizator").style.display = "flex";
+    document.getElementById("footer-app").classList.remove("hidden");
+    document.getElementById("nume-utilizator").textContent = numeUtilizator;
+    // Init priority selector visual state
+    setPrioritate("medie");
     incarcaSarcini();
+    incarcaStatistici();
 }
 
-// ── Task operations ──────────────────────────────────────────────────────
+// ── Statistics ────────────────────────────────────────────────────────
+
+async function incarcaStatistici() {
+    try {
+        const st = await apiFetch("/sarcini/statistici");
+        document.getElementById("stat-total").textContent         = st.total       ?? 0;
+        document.getElementById("stat-finalizate").textContent    = st.finalizate  ?? 0;
+        document.getElementById("stat-nefinalizate").textContent  = st.nefinalizate ?? 0;
+        document.getElementById("stat-intarziate").textContent    = st.intarziate  ?? 0;
+
+        // Progress bar
+        const pct = st.total > 0 ? Math.round((st.finalizate / st.total) * 100) : 0;
+        document.getElementById("bara-progres").style.width = pct + "%";
+        document.getElementById("progres-procent").textContent = pct + "%";
+
+        // Priority breakdown
+        if (st.pe_prioritate) {
+            const pp = st.pe_prioritate;
+            const breakdown = document.getElementById("prioritate-breakdown");
+            breakdown.classList.remove("hidden");
+            breakdown.innerHTML = `
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-800">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Scăzută: ${pp.scazuta ?? 0}
+                </span>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-medium border border-amber-200 dark:border-amber-800">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Medie: ${pp.medie ?? 0}
+                </span>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-xs font-medium border border-red-200 dark:border-red-800">
+                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Ridicată: ${pp.ridicata ?? 0}
+                </span>`;
+        }
+    } catch (e) {
+        // Stats endpoint may not exist yet — fail silently
+        console.warn("Statistici indisponibile:", e.message);
+    }
+}
+
+// ── Task operations ───────────────────────────────────────────────────
 
 async function incarcaSarcini() {
-    const doar = document.getElementById("filtru-nefinalizate").checked;
-    const url = "/sarcini" + (doar ? "?doar_nefinalizate=true" : "");
+    const doar       = document.getElementById("filtru-nefinalizate").checked;
+    const sortBy     = document.getElementById("sorteaza-dupa").value;
+    const ordine     = ordineAsc ? "asc" : "desc";
+    const params = new URLSearchParams();
+    if (doar) params.set("doar_nefinalizate", "true");
+    params.set("sorteaza_dupa", sortBy);
+    params.set("ordine", ordine);
     try {
-        sarciniFull = await apiFetch(url);
+        sarciniFull = await apiFetch("/sarcini?" + params.toString());
         actualizeazaContor();
+        actualizeazaCategorii();
         filtreazaLocal();
     } catch (e) {
         console.error(e);
@@ -223,113 +862,312 @@ async function incarcaSarcini() {
 }
 
 function actualizeazaContor() {
-    const total = sarciniFull.length;
+    const total      = sarciniFull.length;
     const finalizate = sarciniFull.filter(s => s.finalizata).length;
     const el = document.getElementById("contor-sarcini");
-    el.textContent = total + " sarcini / " + finalizate + " finalizate";
-    el.classList.remove("d-none");
+    el.textContent = `${total} sarcini · ${finalizate} finalizate`;
+    el.classList.remove("hidden");
 }
 
 function filtreazaLocal() {
-    const q = document.getElementById("cautare").value.toLowerCase();
-    const filtrate = q ? sarciniFull.filter(s => s.titlu.toLowerCase().includes(q)) : sarciniFull;
+    const q = (document.getElementById("cautare").value || "").toLowerCase();
+    let filtrate = sarciniFull;
+    if (q) filtrate = filtrate.filter(s =>
+        s.titlu.toLowerCase().includes(q) ||
+        (s.descriere || "").toLowerCase().includes(q) ||
+        (s.categorie || "").toLowerCase().includes(q)
+    );
+    if (categorieActiva) filtrate = filtrate.filter(s => s.categorie === categorieActiva);
     randeazaSarcini(filtrate);
 }
 
+// ── Priority badge helpers ────────────────────────────────────────────
+
+function prioritateBadge(prio) {
+    const map = {
+        scazuta:  { cls: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800", dot: "bg-emerald-500", label: "Scăzută" },
+        medie:    { cls: "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800",   dot: "bg-amber-500",   label: "Medie" },
+        ridicata: { cls: "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800",             dot: "bg-red-500",     label: "Ridicată" },
+    };
+    const p = map[prio] || map.medie;
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${p.cls}">
+        <span class="w-1.5 h-1.5 rounded-full ${p.dot} flex-shrink-0"></span>${p.label}
+    </span>`;
+}
+
+function prioritateBorderColor(prio) {
+    return { scazuta: "border-l-emerald-400", medie: "border-l-amber-400", ridicata: "border-l-red-500" }[prio] || "border-l-indigo-400";
+}
+
+// ── Render tasks ──────────────────────────────────────────────────────
+
 function randeazaSarcini(sarcini) {
     const container = document.getElementById("lista-sarcini");
+
     if (sarcini.length === 0) {
-        container.innerHTML = '<p class="text-muted text-center">Nicio sarcină.</p>';
+        const isFiltered = (document.getElementById("cautare").value || "").length > 0 || categorieActiva;
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-20 animate-fade-in">
+                <div class="relative mb-6">
+                    <div class="w-24 h-24 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center shadow-inner">
+                        ${isFiltered
+                            ? '<svg class="w-10 h-10 text-slate-300 dark:text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>'
+                            : '<svg class="w-10 h-10 text-slate-300 dark:text-slate-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-2.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>'
+                        }
+                    </div>
+                    <div class="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            ${isFiltered ? '<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>' : '<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>'}
+                        </svg>
+                    </div>
+                </div>
+                <p class="text-lg font-semibold text-slate-600 dark:text-slate-300">
+                    ${isFiltered ? "Niciun rezultat" : "Nicio sarcină încă"}
+                </p>
+                <p class="text-slate-400 dark:text-slate-500 text-sm mt-1.5 text-center max-w-xs">
+                    ${isFiltered
+                        ? "Încearcă să modifici filtrele sau termenii de căutare."
+                        : "Adaugă prima ta sarcină folosind formularul de mai sus."
+                    }
+                </p>
+                ${!isFiltered ? `
+                <button onclick="document.getElementById('sarcina-titlu').focus(); if(!formOpen) toggleForm();"
+                    class="mt-5 px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-semibold shadow-md shadow-indigo-200/50 transition-all active:scale-[.98] flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    Adaugă prima sarcină
+                </button>` : ""}
+            </div>`;
         return;
     }
-    container.innerHTML = sarcini.map(s => {
-        const cls = s.finalizata ? "finalizata" : "";
-        const badge = s.finalizata
-            ? '<span class="badge bg-success">Finalizată</span>'
-            : '<span class="badge bg-warning text-dark">În progres</span>';
-        const dataCrearii = s.data_crearii ? new Date(s.data_crearii).toLocaleString("ro-RO") : "";
+
+    container.innerHTML = sarcini.map((s, idx) => {
+        const done         = s.finalizata;
+        const prio         = s.prioritate || "medie";
+        const borderColor  = done ? "border-l-emerald-400" : prioritateBorderColor(prio);
+        const opacity      = done ? "opacity-60" : "";
+        const strikethrough= done ? "line-through text-slate-400 dark:text-slate-500" : "text-slate-800 dark:text-white";
+        const highlight    = (lastCreatedId && lastCreatedId === s.id) ? "animate-pulse-ring" : "";
+
+        const statusBadge = done
+            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                Finalizată</span>`
+            : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                În progres</span>`;
+
+        const dataInfo  = formateazaDataLimita(s.data_limita);
+        const dueDateHtml = dataInfo
+            ? (dataInfo.overdue && !done)
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    ${dataInfo.text}</span>`
+                : dataInfo.urgent && !done
+                    ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        ${dataInfo.text}</span>`
+                    : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        ${dataInfo.text}</span>`
+            : "";
+
+        const categorieHtml = s.categorie
+            ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                ${escapeHtml(s.categorie)}</span>`
+            : "";
+
+        const hasDesc = s.descriere && s.descriere.trim().length > 0;
+        const isOverdue = dataInfo && dataInfo.overdue && !done;
+        const overdueClass = isOverdue ? "overdue-card" : "";
+        const timp = timpRelativ(s.data_crearii);
+
+        // Safely encode values for inline onclick
+        const safeTitlu = escapeHtml(s.titlu).replace(/'/g, "&#39;").replace(/\\/g, "\\\\");
+        const safeDesc  = escapeHtml(s.descriere || "").replace(/'/g, "&#39;").replace(/\\/g, "\\\\");
+
         return `
-        <div class="card card-sarcina mb-2 ${cls}" id="card-${s.id}">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1" id="continut-${s.id}">
-                        <h6 class="card-title mb-1">${escapeHtml(s.titlu)} ${badge}</h6>
-                        <p class="card-text text-muted small mb-1">${escapeHtml(s.descriere)}</p>
-                        <small class="text-muted">${dataCrearii}</small>
+        <div class="group bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 border-l-4 ${borderColor} shadow-sm hover:shadow-md dark:shadow-slate-900/30 mb-3 transition-all ${opacity} ${highlight} ${overdueClass} animate-fade-in" id="card-${s.id}" style="animation-delay:${idx * 0.04}s">
+            <div class="px-4 py-4 flex items-start gap-3">
+                <input type="checkbox" class="task-check prio-${prio} mt-0.5" ${done ? "checked" : ""} onclick="finalizeazaSarcina(${s.id})" title="${done ? 'Marchează ca nefinalizată' : 'Finalizează'}">
+
+                <div class="flex-1 min-w-0" id="continut-${s.id}">
+                    <!-- Title row -->
+                    <div class="flex items-start gap-2 flex-wrap">
+                        <span class="font-semibold text-sm leading-snug ${strikethrough} break-words">${escapeHtml(s.titlu)}</span>
                     </div>
-                    <div class="btn-group btn-group-sm ms-2">
-                        ${!s.finalizata ? `<button class="btn btn-outline-success" onclick="finalizeazaSarcina(${s.id})">Finalizează</button>` : ""}
-                        <button class="btn btn-outline-secondary" onclick="incepeEditare(${s.id}, '${escapeHtml(s.titlu).replace(/'/g, "\\'")}', '${escapeHtml(s.descriere).replace(/'/g, "\\'")}')">Editează</button>
-                        <button class="btn btn-outline-danger" onclick="stergeSarcina(${s.id})">Șterge</button>
+
+                    <!-- Badges row -->
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                        ${statusBadge}
+                        ${!done ? prioritateBadge(prio) : ""}
+                        ${dueDateHtml}
+                        ${categorieHtml}
                     </div>
+
+                    <!-- Description (collapsible) -->
+                    ${hasDesc ? `
+                    <button class="text-xs text-slate-400 dark:text-slate-500 hover:text-indigo-500 mt-2.5 flex items-center gap-1 transition" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('svg').classList.toggle('rotate-90')">
+                        <svg class="w-3 h-3 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                        Descriere
+                    </button>
+                    <div class="desc-body">
+                        <div><p class="text-xs text-slate-500 dark:text-slate-400 mt-1 pl-3 border-l-2 border-slate-100 dark:border-slate-700 italic">${escapeHtml(s.descriere)}</p></div>
+                    </div>` : ""}
+
+                    <!-- Timestamp -->
+                    <p class="text-xs text-slate-300 dark:text-slate-600 mt-2">${timp}</p>
+                </div>
+
+                <!-- Actions (visible on hover) -->
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity ml-auto shrink-0" id="actiuni-${s.id}">
+                    <button onclick="incepeEditare(${s.id}, '${safeTitlu}', '${safeDesc}')"
+                        class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition" title="Editează">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button onclick="confirmaStergere(${s.id})"
+                        class="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition" title="Șterge">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
                 </div>
             </div>
         </div>`;
     }).join("");
+
+    lastCreatedId = null;
 }
 
+// ── Create task ───────────────────────────────────────────────────────
+
 async function creazaSarcina() {
-    const titlu = document.getElementById("sarcina-titlu").value.trim();
-    const descriere = document.getElementById("sarcina-descriere").value.trim();
-    if (!titlu) return;
+    const titlu       = document.getElementById("sarcina-titlu").value.trim();
+    const descriere   = document.getElementById("sarcina-descriere").value.trim();
+    const prioritate  = document.getElementById("sarcina-prioritate").value || "medie";
+    const dataLimita  = document.getElementById("sarcina-data-limita").value || null;
+    const categorie   = document.getElementById("sarcina-categorie").value.trim() || null;
+
+    if (!titlu) {
+        document.getElementById("sarcina-titlu").focus();
+        document.getElementById("sarcina-titlu").classList.add("border-red-400", "ring-2", "ring-red-400/30");
+        setTimeout(() => document.getElementById("sarcina-titlu").classList.remove("border-red-400", "ring-2", "ring-red-400/30"), 1500);
+        return;
+    }
+
+    const btn = document.getElementById("btn-adauga");
+    btnLoading(btn, true);
     try {
-        await apiFetch("/sarcini", { method: "POST", body: { titlu, descriere } });
-        document.getElementById("sarcina-titlu").value = "";
-        document.getElementById("sarcina-descriere").value = "";
-        incarcaSarcini();
+        const body = { titlu, descriere, prioritate };
+        if (dataLimita) body.data_limita = dataLimita;
+        if (categorie)  body.categorie   = categorie;
+
+        const res = await apiFetch("/sarcini", { method: "POST", body });
+
+        document.getElementById("sarcina-titlu").value      = "";
+        document.getElementById("sarcina-descriere").value  = "";
+        document.getElementById("sarcina-data-limita").value = "";
+        document.getElementById("sarcina-categorie").value  = "";
+        setPrioritate("medie");
+
+        lastCreatedId = res.id;
+        showToast("Sarcină creată cu succes!");
+        await Promise.all([incarcaSarcini(), incarcaStatistici()]);
     } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
+    } finally {
+        btnLoading(btn, false);
     }
 }
+
+// ── Toggle task done ──────────────────────────────────────────────────
 
 async function finalizeazaSarcina(id) {
     try {
         await apiFetch("/sarcini/" + id + "/finalizeaza", { method: "PATCH" });
-        incarcaSarcini();
+        showToast("Stare sarcină actualizată!", "info");
+        await Promise.all([incarcaSarcini(), incarcaStatistici()]);
     } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
     }
+}
+
+// ── Delete confirmation ───────────────────────────────────────────────
+
+function confirmaStergere(id) {
+    const actiuni = document.getElementById("actiuni-" + id);
+    actiuni.classList.remove("opacity-0");
+    actiuni.innerHTML = `
+        <div class="flex items-center gap-1.5 px-2 py-1 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl text-xs animate-scale-in">
+            <span class="text-amber-700 dark:text-amber-400 font-medium whitespace-nowrap">Ștergi?</span>
+            <button onclick="stergeSarcina(${id})" class="px-2.5 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white font-semibold transition active:scale-95">Da</button>
+            <button onclick="incarcaSarcini()" class="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 font-semibold transition active:scale-95">Nu</button>
+        </div>`;
 }
 
 async function stergeSarcina(id) {
-    if (!window.confirm("Sigur doriți să ștergeți această sarcină?")) return;
+    const card = document.getElementById("card-" + id);
+    if (card) {
+        card.classList.add("animate-slide-out-card");
+        await new Promise(r => setTimeout(r, 350));
+    }
     try {
         await apiFetch("/sarcini/" + id, { method: "DELETE" });
-        incarcaSarcini();
+        showToast("Sarcină ștearsă.", "info");
+        await Promise.all([incarcaSarcini(), incarcaStatistici()]);
     } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
+        await incarcaSarcini();
     }
 }
 
-// ── Inline edit ──────────────────────────────────────────────────────────
+// ── Inline edit ───────────────────────────────────────────────────────
 
 function incepeEditare(id, titlu, descriere) {
     const el = document.getElementById("continut-" + id);
+    const decoded = (str) => str.replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
     el.innerHTML = `
-        <div class="mb-2">
-            <input type="text" class="form-control form-control-sm" id="edit-titlu-${id}" value="${escapeHtml(titlu)}">
-        </div>
-        <div class="mb-2">
-            <textarea class="form-control form-control-sm" id="edit-desc-${id}" rows="2">${escapeHtml(descriere)}</textarea>
-        </div>
-        <button class="btn btn-sm btn-primary" onclick="salveazaEditare(${id})">Salvează</button>
-        <button class="btn btn-sm btn-secondary" onclick="incarcaSarcini()">Anulează</button>
-    `;
+        <div class="space-y-2 animate-scale-in">
+            <input type="text"
+                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition"
+                id="edit-titlu-${id}"
+                value="${titlu}"
+                onkeydown="if(event.key==='Enter')salveazaEditare(${id}); if(event.key==='Escape')incarcaSarcini()">
+            <textarea
+                class="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition resize-none"
+                id="edit-desc-${id}"
+                rows="2"
+                placeholder="Descriere (opțional)">${descriere}</textarea>
+            <div class="flex gap-1.5">
+                <button onclick="salveazaEditare(${id})" class="px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold transition flex items-center gap-1 active:scale-95">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Salvează
+                </button>
+                <button onclick="incarcaSarcini()" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold transition flex items-center gap-1 active:scale-95">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Anulează
+                </button>
+            </div>
+        </div>`;
+    const input = document.getElementById("edit-titlu-" + id);
+    input.value = decoded(titlu);
+    document.getElementById("edit-desc-" + id).value = decoded(descriere);
+    input.focus();
+    input.select();
 }
 
 async function salveazaEditare(id) {
-    const titlu = document.getElementById("edit-titlu-" + id).value.trim();
+    const titlu    = document.getElementById("edit-titlu-" + id).value.trim();
     const descriere = document.getElementById("edit-desc-" + id).value.trim();
     if (!titlu) return;
     try {
         await apiFetch("/sarcini/" + id, { method: "PUT", body: { titlu, descriere } });
-        incarcaSarcini();
+        showToast("Sarcină actualizată!", "info");
+        await incarcaSarcini();
     } catch (e) {
-        alert(e.message);
+        showToast(e.message, "error");
     }
 }
 
-// ── Init ─────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────
 
 if (token && numeUtilizator) {
     araraInterfataSarcini();
